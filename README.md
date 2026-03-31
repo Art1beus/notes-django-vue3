@@ -21,5 +21,5 @@
   Backend-разработка велась на Python, с применением фреймворка Django и сопутствующих библиотеки Django Rest Framework и приложения django-cors-headers.
 
   *Команды:*
-'pip install django' - устанавливаем django
+  1. `pip install django` - устанавливаем django
 
