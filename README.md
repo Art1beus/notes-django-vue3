@@ -1,1 +1,1 @@
-# notes-django-vue3
+# Заметки (Notes App)
