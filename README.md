@@ -41,7 +41,7 @@
 
 ---
 
-  backend > modules.py
+  notes > modules.py
   ```
   from django.db import models
   from django.contrib.auth.models import User
@@ -69,13 +69,14 @@
 
   **Описание:**
   
-  Модель Note — это ядро приложения, описывающее структуру хранения заметок в базе данных. Она включает заголовок (title), текстовое поле для содержания (content), а также автоматические отметки времени создания и изменения. Связь ForeignKey с моделью User обеспечивает   многопользовательский режим. Каждая заметка жестко привязана к своему автору, и при удалении аккаунта пользователя его данные стираются автоматически (каскадно).
+  Модель Note — это ядро приложения, описывающее структуру хранения заметок в базе данных. Она включает заголовок (title), текстовое поле для содержания (content), а также автоматические отметки времени создания и изменения. Связь ForeignKey с моделью User
+  обеспечивает   многопользовательский режим. Каждая заметка жестко привязана к своему автору, и при удалении аккаунта пользователя его данные стираются автоматически (каскадно).
   Внутренний class Meta управляет поведением модели на уровне всей таблицы: он задает человекочитаемые названия для админ-панели («Заметка» / «Заметки») и устанавливает стандартную сортировку, благодаря которой новые записи всегда отображаются вверху списка.
   Метод __str__ определяет текстовое представление объекта, выводя заголовок вместе с именем автора, что упрощает идентификацию конкретной записи при отладке или просмотре списка в панели управления.
   
 ---
   
-  backend > serializers.py
+  notes > serializers.py
   ```
   from rest_framework import serializers
   from django.contrib.auth.models import User
@@ -104,6 +105,93 @@
           return Note.objects.create(user=user, **validated_data)
    ```
 
-**Описание:**
+  **Описание:**
+
+  Слой сериализаторов обеспечивает преобразование моделей Django в формат JSON для обмена данными через API. 
+  UserSerializer отвечает за базовое представление данных автора (ID, логин, email, имя и фамилия), предоставляя необходимый контекст о пользователе. 
+  Основной NoteSerializer формирует полную карточку заметки, включая вложенную информацию об авторе (через UserSerializer) и автоматически вычисляемые поля времени, которые доступны только для чтения (read_only).
+  Специализированный NoteCreateSerializer оптимизирован для процесса создания новых записей. Он ограничивает ввод пользователя только заголовком и содержанием, гарантируя безопасность остальных данных. Внутренняя логика метода create автоматически извлекает текущего     авторизованного пользователя из контекста запроса (request.user), исключая возможность подмены автора при сохранении заметки в базу данных.
+
+---
+
+notes > views.py
+```
+from rest_framework import generics, permissions, status
+from rest_framework.response import Response
+from rest_framework.views import APIView
+from django.contrib.auth.models import User
+from .models import Note
+from .serializers import NoteSerializer, NoteCreateSerializer, UserSerializer
+
+class IsOwner(permissions.BasePermission):
+    """Разрешение: только владелец может редактировать/удалять"""
+    
+    def has_object_permission(self, request, view, obj):
+        if request.method in permissions.SAFE_METHODS:
+            return True
+        return obj.user == request.user
+
+class RegisterView(APIView):
+    permission_classes = [permissions.AllowAny]
+    
+    def post(self, request):
+        username = request.data.get('username')
+        password = request.data.get('password')
+        email = request.data.get('email', '')
+        
+        if not username or not password:
+            return Response(
+                {'error': 'Необходимо указать username и password'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        if User.objects.filter(username=username).exists():
+            return Response(
+                {'error': 'Пользователь с таким именем уже существует'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        user = User.objects.create_user(
+            username=username,
+            password=password,
+            email=email
+        )
+        
+        return Response(
+            UserSerializer(user).data,
+            status=status.HTTP_201_CREATED
+        )
+
+class UserProfileView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get(self, request):
+        return Response(UserSerializer(request.user).data)
+
+class NoteListCreateView(generics.ListCreateAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get_queryset(self):
+        return Note.objects.filter(user=self.request.user)
+    
+    def get_serializer_class(self):
+        if self.request.method == 'POST':
+            return NoteCreateSerializer
+        return NoteSerializer
+
+class NoteDetailView(generics.RetrieveUpdateDestroyAPIView):
+    permission_classes = [permissions.IsAuthenticated, IsOwner]
+    serializer_class = NoteSerializer
+    
+    def get_queryset(self):
+        return Note.objects.filter(user=self.request.user)
+```
+
+  **Описание:**
+  
+  Логика представлений (Views) и прав доступа обеспечивает безопасное управление данными через API. 
+  Кастомный класс IsOwner реализует строгую проверку прав, позволяя редактировать или удалять заметки только их непосредственным авторам, при этом разрешая безопасные методы чтения. 
+  Система регистрации в RegisterView открыта для всех (AllowAny) и включает валидацию уникальности имени пользователя, а UserProfileView предоставляет авторизованным участникам доступ к данным их собственного профиля.
+  Работа с заметками разделена на два ключевых контроллера. NoteListCreateView отвечает за вывод списка записей текущего пользователя и создание новых, динамически переключаясь между сериализаторами в зависимости от типа HTTP-запроса. Для детальных операций (просмотр,   обновление, удаление) используется NoteDetailView, который дополнительно фильтрует выборку по владельцу, гарантируя, что пользователь не сможет взаимодействовать с чужим контентом даже при прямом обращении по ID.
 
 
