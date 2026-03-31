@@ -194,4 +194,36 @@ class NoteDetailView(generics.RetrieveUpdateDestroyAPIView):
   Система регистрации в RegisterView открыта для всех (AllowAny) и включает валидацию уникальности имени пользователя, а UserProfileView предоставляет авторизованным участникам доступ к данным их собственного профиля.
   Работа с заметками разделена на два ключевых контроллера. NoteListCreateView отвечает за вывод списка записей текущего пользователя и создание новых, динамически переключаясь между сериализаторами в зависимости от типа HTTP-запроса. Для детальных операций (просмотр,   обновление, удаление) используется NoteDetailView, который дополнительно фильтрует выборку по владельцу, гарантируя, что пользователь не сможет взаимодействовать с чужим контентом даже при прямом обращении по ID.
 
+---
 
+backend & notes > urls.py
+```
+from django.contrib import admin
+from django.urls import path, include
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+
+urlpatterns = [
+    path('admin/', admin.site.urls),
+    path('api/', include('notes.urls')),
+    path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+]
+
+
+from django.urls import path
+from . import views
+
+urlpatterns = [
+    path('register/', views.RegisterView.as_view(), name='register'),
+    path('profile/', views.UserProfileView.as_view(), name='profile'),
+    path('notes/', views.NoteListCreateView.as_view(), name='note-list'),
+    path('notes/<int:pk>/', views.NoteDetailView.as_view(), name='note-detail'),
+]
+```
+
+**Описание:**
+
+Маршрутизация проекта организована через иерархическую структуру URL-адресов, разделяя системные и прикладные интерфейсы. Глобальный файл конфигурации подключает стандартную админ-панель Django и интегрирует библиотеку SimpleJWT для управления сессиями. Эндпоинты /api/token/ и /api/token/refresh/ обеспечивают полный цикл аутентификации. От получения пары Access/Refresh токенов по логину и паролю до их безопасного обновления без повторного ввода данных.
+Внутренняя логика приложения notes вынесена в отдельное пространство имен /api/, где сгруппированы все пользовательские действия. Раздел управления аккаунтом включает регистрацию новых пользователей и просмотр текущего профиля. Основной функционал работы с заметками реализован через коллекцию /notes/ для массовых операций и детальный путь /notes/<int:pk>/ для манипуляций с конкретной записью по её уникальному идентификатору, что соответствует архитектурному стилю REST.
+
+---
