@@ -19,6 +19,7 @@
   Данный редактор выбран как наиболее популярная и удобная среда разработки.
   ### Backend
   Backend-разработка велась на Python, с применением фреймворка Django и сопутствующих библиотеки Django Rest Framework и приложения django-cors-headers.
+  
   **Команды:**
   1. `mkdir backend` - создать папку backend'а
   2. `pip install django` - устанавливаем django
@@ -28,7 +29,9 @@
   6. `python manage.py makemigrations` - создание миграций
   7. `python manage.py migrate` - выполнение миграции
   8. `python manage.py runserver` - запуск сервера
+  9. 
   **Код:**
+
   backend > settings.py > INSTALLED_APPS
   * `rest_framework` - основной каркас приложения
   * `rest_framework_simplejwt` - модуль аутентификации
