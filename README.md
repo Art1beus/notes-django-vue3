@@ -21,6 +21,7 @@
   Backend-разработка велась на Python, с применением фреймворка Django и сопутствующих библиотеки Django Rest Framework и приложения django-cors-headers.
   
   **Команды:**
+  
   1. `mkdir backend` - создать папку backend'а
   2. `pip install django` - устанавливаем django
   3. `django-admin startproject backend` - создание проекта
@@ -31,7 +32,7 @@
   8. `python manage.py runserver` - запуск сервера
 
   **Код:**
-
+  
   backend > settings.py > INSTALLED_APPS
   * `rest_framework` - основной каркас приложения
   * `rest_framework_simplejwt` - модуль аутентификации
